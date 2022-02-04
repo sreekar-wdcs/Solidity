@@ -1,0 +1,5 @@
+Library is used to import functionalites to the contract.
+Libraries will save gas fee
+Blockchain will not store libraries data
+You cannot send funds to libraries.
+By "USING" keyword we can import libraries.

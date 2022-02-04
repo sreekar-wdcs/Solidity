@@ -1,0 +1,3 @@
+A will call approve(address(B), 100)
+B will check how many tokens A gave him permission to use by calling allowance(address(A), address(B))
+B will send to his account these tokens by calling transferFrom(address(A), address(B), 100)

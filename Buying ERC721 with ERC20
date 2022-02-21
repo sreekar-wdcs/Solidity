@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+
+
+
+contract Fungible is ERC20 {
+    constructor() ERC20("Fungible", "FUN") {
+        _mint(msg.sender, 100000000 * 10 ** decimals());
+    }
+}
+
+contract nonFungible is ERC721{
+
+    using SafeMath for uint256;
+    using SafeERC20 for IERC20;
+     
+     constructor() ERC721("nonFungible", "NOFUN") {
+         owner = msg.sender;
+     }
+
+     address public owner;
+
+     uint num = 20;
+       mapping(uint256 => address) private _owners;
+
+    // Mapping owner address to token count
+    mapping(address => uint256) public _balances;
+
+
+     IERC20 public whatever = IERC20(0x0fC5025C764cE34df352757e82f7B5c4Df39A836);
+
+      function mint(address to,  uint amount) public {
+          require(to != address(0), "ERC721: mint to the zero address");
+        // require(!_exists(tokenId), "ERC721: token already minted");
+        
+       require(amount >= num);
+
+         whatever.safeTransferFrom(msg.sender, address(this), amount);
+
+        _balances[to] += 1;
+        // _owners[tokenId] = to;
+
+        // emit Transfer(address(0), to);
+      }
+
+
+
+}
+
+

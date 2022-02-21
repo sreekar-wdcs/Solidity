@@ -32,6 +32,7 @@ contract nonFungible is ERC721{
 
     // Mapping owner address to token count
     mapping(address => uint256) public _balances;
+    mapping(address => uint) public ERC20balance;
 
 
      IERC20 public whatever = IERC20(0x0fC5025C764cE34df352757e82f7B5c4Df39A836);
@@ -43,7 +44,9 @@ contract nonFungible is ERC721{
        require(amount >= num);
 
          whatever.safeTransferFrom(msg.sender, address(this), amount);
-
+         
+         ERC20balance += amount;
+         
         _balances[to] += 1;
         // _owners[tokenId] = to;
 

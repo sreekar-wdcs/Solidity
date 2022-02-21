@@ -1,0 +1,3 @@
+State variables and Local Variables of structs, array are always stored in storage by default.
+Function arguments are in memory.
+Whenever a new instance of an array is created using the keyword ‘memory’, a new copy of that variable is created. Changing the array value of the new instance does not affect the original array.

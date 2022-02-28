@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity >=0.7.0 <0.9.0;
+
+contract blacklist{
+
+    string private name;
+    string private symbol;
+    uint private decimals;
+    address public owner;
+
+    constructor(string memory _name, string memory _symbol, uint _decimals) public {
+        name = _name;
+        symbol = _symbol;
+        decimals = _decimals;
+        owner = msg.sender;
+
+    }
+
+    modifier OnlyOwner() {
+        require(owner == msg.sender);
+        _;
+    }
+
+    mapping(address => bool) public blacklisted;
+    mapping(address => bool) public whitelisted;
+    mapping(address => uint) private balances;
+
+    function setBlackList(address add) external OnlyOwner {
+        blacklisted[add] = true;
+    }
+
+    receive() external payable {
+        if(msg.value >= 0.1 ether) {
+            whitelisted[msg.sender] = true;
+            blacklisted[msg.sender] = false;
+        }
+    }
+
+    function checkBalance(address user) external  returns(uint){
+        require(whitelisted[user] = true);
+        return balances[user];
+    }
+
+
+}

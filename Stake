@@ -458,3 +458,6 @@ contract MVPPool is LPTokenWrapper, IRewardDistributionRecipient {
         }
     }
 }
+
+//Deploy ERC20. Deploy reward contract. Approve reward contract to spend erc20. Stake token, reward rate, Reward distribution.
+

@@ -1,0 +1,34 @@
+To call the functions from other contract that you don't have the code access.
+Write the functions you want in interface.
+Call those functions giving address of main contract.
+
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+contract playerScore {
+    uint public score;
+
+    function updateScore() external {
+        score++;
+    }
+
+    function getScore() external view returns(uint) {
+        return score;
+    }
+}
+
+interface IplayerScore {
+    function updateScore() external;
+    function getScore() external  view returns(uint);
+}
+
+contract inherit {
+    function update(address _instance) external {
+        IplayerScore(_instance).updateScore();
+    }
+
+    function get(address _instance) external  view returns(uint) {
+       return IplayerScore(_instance).getScore();
+    }
+}

@@ -1,5 +1,90 @@
-pragma solidity ^0.4.24;
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.5.0;
+
+interface Ireciever {
+     function publishBet( string memory _name, string memory _conditions, uint256 _price) external payable ;
+     function acceptBet( uint _id) external payable ;
+}
+
+contract reciever is Ireciever {
+    receive() external payable {}
+
+    struct Bet {
+    uint id;
+    address challenger;
+    address accepter;
+    string name;
+    string conditions;
+    uint256 price;
+  }
+  mapping (uint => Bet) public bets;
+  uint betCounter;
+  event LogPublishBet(
+    uint indexed _id,
+    address indexed _challenger,
+    string _name,
+    uint256 _price
+  );
+  event LogAcceptBet(
+    uint indexed _id,
+    address indexed _challenger,
+    address indexed _accepter,
+    string _name,
+    uint256 _price
+  );
+
+  function getBalance() public view returns(uint) {
+        return address(this).balance;
+    }
+    
+    // Publish a new bet
+  function publishBet( string memory _name, string memory _conditions, uint256 _price) public payable  {
+    // The challenger must deposit his bet
+    //require(_price > 0 && msg.value == _price);
+    // A new bet
+    betCounter++;
+    // Store this bet into the contract
+    bets[betCounter] = Bet(
+      betCounter,
+      msg.sender,
+      address(0),
+      _name,
+      _conditions,
+      _price
+    );
+    
+    // Trigger a log event
+    emit LogPublishBet(betCounter, msg.sender, _name, _price);
+  }
+
+   
+
+   function acceptBet( uint _id) external payable {
+    // Check whether there is a bet published
+    require(betCounter > 0);
+    // Check that the bet exists
+    require(_id > 0 && _id <= betCounter);
+    // Retrieve the bet
+    Bet storage bet = bets[_id];
+    // Check that the bet has not been accepted yet
+    require(bet.accepter == address(0));
+    // Don't allow the challenger to accept his own bet
+    require(msg.sender != bet.challenger);
+    // The accepter must deposit his bet
+    require(msg.value == bet.price);
+    bet.accepter = msg.sender;
+    // Trigger a log event
+    
+    emit LogAcceptBet(_id, bet.challenger, bet.accepter, bet.name, bet.price);
+  }
+
+}
+
+
 contract BetList  {
+
+    reciever internal takesBet;
+
   //callBet private _instance;
   struct Bet {
     uint id;
@@ -24,44 +109,50 @@ contract BetList  {
     string _name,
     uint256 _price
   );
-
   // Publish a new bet
-  function publishBet(address _instance, string _name, string _conditions, uint256 _price) payable public {
-    // The challenger must deposit his bet
-    require(_price > 0 && msg.value == _price);
+  function publishBet( string memory _name, string memory _conditions, uint256 _price) external payable  {
+      require(_price > 0 && msg.value == _price);
+       // The challenger must deposit his bet
+    //require(_price > 0 && msg.value == _price);
     // A new bet
     betCounter++;
+
     // Store this bet into the contract
     bets[betCounter] = Bet(
       betCounter,
       msg.sender,
-      0x0,
+      address(0),
       _name,
       _conditions,
       _price
     );
+    
+   
+    takesBet = new reciever();
+    Ireciever(takesBet).publishBet(_name, _conditions, _price);
+    address  _takesBet = address(takesBet);
+        payable(_takesBet).transfer(msg.value);
 
-    address(_instance).transfer(msg.value);
-    // Trigger a log event
+         // Trigger a log event
     emit LogPublishBet(betCounter, msg.sender, _name, _price);
   }
-
   function getBalance() public view returns(uint) {
         return address(this).balance;
     }
-    
-  // Fetch the total number of bets in the contract
+
+    // Fetch the total number of bets in the contract
   function getNumberOfBets() public view returns (uint) {
     return betCounter;
   }
+
   // Fetch and return all bet IDs for bets that are still available
-  function getAvailableBets() public view returns (uint[]) {
+  function getAvailableBets() public view returns (uint[] memory) {
     uint[] memory betIds = new uint[](betCounter);
     uint numberOfAvailableBets = 0;
     // Iterate over all bets
     for(uint i = 1; i <= betCounter; i++) {
       // Keep the ID if the bet is still available
-      if(bets[i].accepter == 0x0) {
+      if(bets[i].accepter == address(0)) {
         betIds[numberOfAvailableBets] = bets[i].id;
         numberOfAvailableBets++;
       }
@@ -73,34 +164,37 @@ contract BetList  {
     }
     return availableBets;
   }
+ 
+  
   // Accept a bet
-  function acceptBet(address _instance, uint _id) payable public {
-    // Check whether there is a bet published
+  function acceptBet( uint _id) external payable  {
+      // Check whether there is a bet published
     require(betCounter > 0);
     // Check that the bet exists
     require(_id > 0 && _id <= betCounter);
     // Retrieve the bet
     Bet storage bet = bets[_id];
     // Check that the bet has not been accepted yet
-    require(bet.accepter == 0x0);
+    require(bet.accepter == address(0));
     // Don't allow the challenger to accept his own bet
     require(msg.sender != bet.challenger);
     // The accepter must deposit his bet
     require(msg.value == bet.price);
     bet.accepter = msg.sender;
     // Trigger a log event
-    address(_instance).transfer(msg.value);
-    emit LogAcceptBet(_id, bet.challenger, bet.accepter, bet.name, bet.price);
-  }
-}
-
-contract recieves {
     
-    function() public payable {
-    }
+   
+    takesBet = new reciever();
+    Ireciever(takesBet).acceptBet(_id);
+    address  _takesBet = address(takesBet);
+        payable(_takesBet).transfer(msg.value);
 
-    function getBalance() public view returns(uint) {
-        return address(this).balance;
-    }
+         emit LogAcceptBet(_id, bet.challenger, bet.accepter, bet.name, bet.price);
+  }
+
+    // receive() external payable {}
+    fallback() external payable {}
+
 }
+
 

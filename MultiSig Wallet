@@ -1,0 +1,110 @@
+ Multi sig wallet requires signature from the multiple wallets to access funds or to take a decision.
+ 
+ // SPDX-License-Identifier: MIT
+
+pragma solidity >= 0.8.10;
+
+contract Voting {
+
+    event Deposit(address indexed sender, uint indexed amount);
+    event Submit(uint indexed txId);
+    event Approve(address indexed owner, uint indexed txId);
+    event Revoke(address indexed owner, uint indexed txId);
+    event Excecute(uint indexed txId);
+
+    struct Transaction {
+        address to;
+        uint value;
+        bytes data;
+        bool excecuted;
+    }
+
+    address[] public owners;
+    mapping(address => bool) public isOwner;
+    uint public required;
+    mapping(address => uint)  stakedAmount;
+    
+
+    Transaction[] public transactions;
+    mapping(uint => mapping(address => bool)) public approved;
+
+    modifier onlyOwner() {
+        require(isOwner[msg.sender], "is not a judge");
+        _;
+    }
+
+    modifier txExists(uint _txId) {
+        require(_txId < transactions.length, "Transaction doesn't exist");
+        _;
+    }
+    
+
+    modifier notApproved(uint _txId) {
+        require(!approved[_txId][msg.sender], "Already approved");
+        _;
+    }
+
+     modifier notExcecuted(uint _txId) {
+        require(!approved[_txId][msg.sender], "Already approved");
+        _;
+    }
+
+    constructor (address[] memory _owner, uint _required) {
+        require(_owner.length > 0, "judges required");
+        require( _required <= _owner.length && _required > 0, "required cannot be zero");
+        
+
+        for(uint i = 0; i < _owner.length; i++) {
+            address owner = _owner[i];
+            
+            require(owner != address(0), "invalid owner");
+            require(!isOwner[owner], "existing judge");
+            isOwner[owner] = true;
+            owners.push(owner);
+        }
+        required = _required;
+    }
+
+    receive() external payable {
+         emit Deposit(msg.sender, msg.value);
+         stakedAmount[msg.sender] += msg.value;
+    }
+
+    function submit(address _to, uint _value, bytes calldata _data) external onlyOwner {
+        transactions.push(Transaction({
+            to : _to,
+            value : _value,
+            data : _data,
+            excecuted : false
+        }));
+
+        emit Submit(transactions.length -1);
+    }
+
+    function approve(uint _txId) external onlyOwner txExists(_txId) notApproved(_txId) notExcecuted(_txId){
+        approved[_txId][msg.sender] = true;
+
+        emit Approve(msg.sender, _txId);
+    }
+
+    function ApprovalCount(uint _txId) private view returns(uint count) {
+        for(uint i = 0; i < owners.length; i++) {
+            if(approved[_txId][owners[i]] ) {
+               count ++;
+            }
+        }
+    }
+
+    function execute(uint _txId) external txExists(_txId) notExcecuted(_txId) {
+        require(ApprovalCount(_txId) >= required, "requirement not met");
+
+        Transaction storage transaction = transactions[_txId];
+
+        transaction.excecuted = true;
+        (bool success, ) = transaction.to.call{value: transaction.value}(transaction.data);
+
+        require(success, "tx Failed");
+        emit Excecute(_txId);
+    }
+
+}

@@ -19,8 +19,8 @@ contract Voting {
         bool excecuted;
     }
 
-    address[] public owners;
-    mapping(address => bool) public isOwner;
+    address[] public judges;
+    mapping(address => bool) public isJudge;
     uint public required;
     mapping(address => uint)  stakedAmount;
     
@@ -28,8 +28,8 @@ contract Voting {
     Transaction[] public transactions;
     mapping(uint => mapping(address => bool)) public approved;
 
-    modifier onlyOwner() {
-        require(isOwner[msg.sender], "is not a judge");
+    modifier onlyJudge() {
+        require(isJudge[msg.sender], "is not a judge");
         _;
     }
 
@@ -49,18 +49,18 @@ contract Voting {
         _;
     }
 
-    constructor (address[] memory _owner, uint _required) {
-        require(_owner.length > 0, "judges required");
-        require( _required <= _owner.length && _required > 0, "required cannot be zero");
+    constructor (address[] memory _judge, uint _required) {
+        require(_judge.length > 0, "judges required");
+        require( _required <= _judge.length && _required > 0, "required cannot be zero");
         
 
-        for(uint i = 0; i < _owner.length; i++) {
-            address owner = _owner[i];
+        for(uint i = 0; i < _judge.length; i++) {
+            address judge = _judge[i];
             
-            require(owner != address(0), "invalid owner");
-            require(!isOwner[owner], "existing judge");
-            isOwner[owner] = true;
-            owners.push(owner);
+            require(judge != address(0), "invalid owner");
+            require(!isJudge[judge], "existing judge");
+            isJudge[judge] = true;
+            judges.push(judge);
         }
         required = _required;
     }
@@ -70,7 +70,7 @@ contract Voting {
          stakedAmount[msg.sender] += msg.value;
     }
 
-    function submit(address _to, uint _value, bytes calldata _data) external onlyOwner {
+    function submit(address _to, uint _value, bytes calldata _data) external onlyJudge {
         transactions.push(Transaction({
             to : _to,
             value : _value,
@@ -81,15 +81,15 @@ contract Voting {
         emit Submit(transactions.length -1);
     }
 
-    function approve(uint _txId) external onlyOwner txExists(_txId) notApproved(_txId) notExcecuted(_txId){
+    function approve(uint _txId) external onlyJudge txExists(_txId) notApproved(_txId) notExcecuted(_txId){
         approved[_txId][msg.sender] = true;
 
         emit Approve(msg.sender, _txId);
     }
 
     function ApprovalCount(uint _txId) private view returns(uint count) {
-        for(uint i = 0; i < owners.length; i++) {
-            if(approved[_txId][owners[i]] ) {
+        for(uint i = 0; i < judges.length; i++) {
+            if(approved[_txId][judges[i]] ) {
                count ++;
             }
         }

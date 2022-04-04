@@ -544,10 +544,28 @@ contract TokenMintERC20Token is ERC20 {
     }
 }
 
-contract cryptoPredictionPool is ReentrancyGuard {
+
+interface IcryptoPredictionPool {
+    function Register(string memory _username) external returns(bool);
+    function callRebase(bool _rebaseIsPositive, uint256 _rebasePoolId) external;
+    function PlaceBet(uint256 index,uint256 _prices,uint256 _percent,uint256 _poolId,uint256 _amount) external returns(bool);
+    function updatebal(address _user,uint256 _poolId,uint256 _reward,bool _isPositive) external returns(bool);
+    function createRebase() external returns(bool);
+    function createPool(uint256[15] memory _prices) external returns(bool);
+    function updateowner(address new_owner) external returns(bool);
+    function updatetime(uint256 _timestamp) external returns(bool);
+    function fetchUser(address _user) external view returns(uint256[] memory _pools,string memory username,uint256 claimable,uint256 staked_balance, bool active);
+    function fetchRebasePool(uint _RebasePoolId) external view returns( uint _NumberOfOccurances, uint _numberOfPositiveDates, uint _createdTime, uint _endingTime);
+    function fetchPool(uint256 _poolId) external view returns(uint256[15] memory _prices,uint256 _start,uint256 _end,uint256 _staking_ends);
+    function fetchUserBets(address _user, uint256 _poolId) external view returns(uint256[15] memory _pools,uint256[15] memory _prices,uint256[15] memory _amounts,uint256 balance,uint256 totalbet);
+    function fetchUserInPool(uint256 _poolId) external view returns(address[] memory _betters);
+}
+
+
+contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
     
-    uint256 public poolId = 1;
-    uint public rebasePoolId = 1;
+    uint256 public poolId ;
+    uint public rebasePoolId ;
     address public owner;
     
     /* Pool Token Address */
@@ -627,6 +645,8 @@ contract cryptoPredictionPool is ReentrancyGuard {
 
 
     function callRebase(bool _rebaseIsPositive, uint256 _rebasePoolId) public {
+        //can only call after 23 hours 40 minutes of pool creation.
+        require(block.timestamp >= lastcreated + 85200, "pool time"); //23 hours 40 mins in seconds
         require(msg.sender == owner, "Not Owner");
         require(_rebasePoolId <= rebasePoolId, "Invalid");
         Rebase storage r = rebase[_rebasePoolId];
@@ -721,11 +741,11 @@ contract cryptoPredictionPool is ReentrancyGuard {
      function createRebase() public returns(bool) {
         require(msg.sender == owner,'Not Owner');
         require(block.timestamp > lastRebaseCreated + 30 days, "cannot create new one before 30 days cycle");
+        rebasePoolId = SafeMath.add(rebasePoolId,1);
         Rebase storage r = rebase[rebasePoolId];
         r.createdTime = block.timestamp;
         lastRebaseCreated = block.timestamp;
         r.endingTime = SafeMath.add(block.timestamp,30 days);
-        rebasePoolId = SafeMath.add(rebasePoolId,1);
         return true;
         
     }
@@ -735,6 +755,7 @@ contract cryptoPredictionPool is ReentrancyGuard {
     function createPool(uint256[15] memory _prices) public returns(bool){
         require(msg.sender == owner,'Not Owner');
         require( block.timestamp > lastpoolcreated +  1 days,'Cannot Create');
+        poolId = SafeMath.add(poolId,1);
         Pool storage b = pool[poolId];
         b.prices = _prices;
         b.startime = block.timestamp;
@@ -742,8 +763,7 @@ contract cryptoPredictionPool is ReentrancyGuard {
         lastcreated = block.timestamp;
         b.endtime = SafeMath.add(block.timestamp,1 days);
         b.stakingends = SafeMath.add(block.timestamp,12 hours);
-        poolId = SafeMath.add(poolId,1);
-        return true;
+       return true;
     }
     
     /* Update new owner of the contract */

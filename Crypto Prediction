@@ -547,6 +547,7 @@ contract TokenMintERC20Token is ERC20 {
 contract cryptoPredictionPool is ReentrancyGuard {
     
     uint256 public poolId = 1;
+    uint public rebasePoolId = 1;
     address public owner;
     
     /* Pool Token Address */
@@ -561,6 +562,16 @@ contract cryptoPredictionPool is ReentrancyGuard {
     
     uint256 public lastcreated;
     uint256 lastpoolcreated;
+    uint256 public lastRebaseCreated;
+
+
+    struct Rebase {
+        uint NumberOfOccurances;
+        uint numberOfPositiveDates;
+        uint createdTime;
+        uint endingTime;
+    }
+
 
     struct UserBets{
         uint256[15] pools;
@@ -595,6 +606,8 @@ contract cryptoPredictionPool is ReentrancyGuard {
     mapping(uint256 => Pool) pool;
     mapping(address => User) user;
     mapping(uint256 => Data) data;
+    mapping(uint256 => Rebase) rebase;
+    mapping(uint256 => bool) IsRebasePositive;
     
     constructor(address _pool_address) {
         owner = msg.sender;
@@ -611,6 +624,19 @@ contract cryptoPredictionPool is ReentrancyGuard {
         us.username = _username;
         return true;
     }
+
+
+    function callRebase(bool _rebaseIsPositive, uint256 _rebasePoolId) public {
+        require(msg.sender == owner, "Not Owner");
+        require(_rebasePoolId <= rebasePoolId, "Invalid");
+        Rebase storage r = rebase[_rebasePoolId];
+        require(r.endingTime >= block.timestamp, "Ended");
+        r.NumberOfOccurances = SafeMath.add(r.NumberOfOccurances, 1);
+        if(_rebaseIsPositive == true) {
+            r.numberOfPositiveDates = SafeMath.add(r.numberOfPositiveDates, 1);
+        } 
+    }
+    
     
     /* For placing a prediction in the pool. */
     
@@ -646,6 +672,8 @@ contract cryptoPredictionPool is ReentrancyGuard {
 
          
     }
+
+   
     
     /* Update user balance. Max 4% can be changed */
     
@@ -687,19 +715,33 @@ contract cryptoPredictionPool is ReentrancyGuard {
         uint256 b = SafeMath.div(a,10**8);
         fee_collected = SafeMath.add(fee_collected,b);
     }
-    
-    /* Create a new pool after 3 days */
+
+    /* create new rebase count after 30 days */
+
+     function createRebase() public returns(bool) {
+        require(msg.sender == owner,'Not Owner');
+        require(block.timestamp > lastRebaseCreated + 30 days, "cannot create new one before 30 days cycle");
+        Rebase storage r = rebase[rebasePoolId];
+        r.createdTime = block.timestamp;
+        lastRebaseCreated = block.timestamp;
+        r.endingTime = SafeMath.add(block.timestamp,30 days);
+        rebasePoolId = SafeMath.add(rebasePoolId,1);
+        return true;
+        
+    }
+
+    /* Create a new pool after 1 days */
     
     function createPool(uint256[15] memory _prices) public returns(bool){
         require(msg.sender == owner,'Not Owner');
-        require( block.timestamp > lastpoolcreated +  3 days,'Cannot Create');
+        require( block.timestamp > lastpoolcreated +  1 days,'Cannot Create');
         Pool storage b = pool[poolId];
         b.prices = _prices;
         b.startime = block.timestamp;
         lastpoolcreated = block.timestamp;
         lastcreated = block.timestamp;
-        b.endtime = SafeMath.add(block.timestamp,3 days);
-        b.stakingends = SafeMath.add(block.timestamp,1 days);
+        b.endtime = SafeMath.add(block.timestamp,1 days);
+        b.stakingends = SafeMath.add(block.timestamp,12 hours);
         poolId = SafeMath.add(poolId,1);
         return true;
     }
@@ -736,6 +778,11 @@ contract cryptoPredictionPool is ReentrancyGuard {
     function fetchUser(address _user) public view returns(uint256[] memory _pools,string memory username,uint256 claimable,uint256 staked_balance, bool active){
         User storage us = user[_user];
         return(us.pools,us.username,us.freebal,us.balance,us.active);
+    }
+
+    function fetchRebasePool(uint _RebasePoolId) public view returns( uint _NumberOfOccurances, uint _numberOfPositiveDates, uint _createdTime, uint _endingTime) {
+        Rebase storage r = rebase[_RebasePoolId];
+        return(r.NumberOfOccurances, r.numberOfPositiveDates, r.createdTime, r.endingTime);
     }
     
     /* Fetch the information of a PoolId */

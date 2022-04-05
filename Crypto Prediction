@@ -547,7 +547,7 @@ contract TokenMintERC20Token is ERC20 {
 
 interface IcryptoPredictionPool {
     function Register(string memory _username) external returns(bool);
-    function callRebase(bool _rebaseIsPositive, uint256 _rebasePoolId) external;
+    function callRebase(bool rebaseIsNegative, uint256 _rebasePoolId) external;
     function PlaceBet(uint256 index,uint256 _prices,uint256 _percent,uint256 _poolId,uint256 _amount) external returns(bool);
     function updatebal(address _user,uint256 _poolId,uint256 _reward,bool _isPositive) external returns(bool);
     function createRebase() external returns(bool);
@@ -555,7 +555,7 @@ interface IcryptoPredictionPool {
     function updateowner(address new_owner) external returns(bool);
     function updatetime(uint256 _timestamp) external returns(bool);
     function fetchUser(address _user) external view returns(uint256[] memory _pools,string memory username,uint256 claimable,uint256 staked_balance, bool active);
-    function fetchRebasePool(uint _RebasePoolId) external view returns( uint _NumberOfOccurances, uint _numberOfPositiveDates, uint _createdTime, uint _endingTime);
+    function fetchRebasePool(uint _RebasePoolId) external view returns( uint _NumberOfOccurances, uint _numberOfNegativeDates, uint _createdTime, uint _endingTime);
     function fetchPool(uint256 _poolId) external view returns(uint256[15] memory _prices,uint256 _start,uint256 _end,uint256 _staking_ends);
     function fetchUserBets(address _user, uint256 _poolId) external view returns(uint256[15] memory _pools,uint256[15] memory _prices,uint256[15] memory _amounts,uint256 balance,uint256 totalbet);
     function fetchUserInPool(uint256 _poolId) external view returns(address[] memory _betters);
@@ -585,7 +585,7 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
 
     struct Rebase {
         uint NumberOfOccurances;
-        uint numberOfPositiveDates;
+        uint numberOfNegativeDates;
         uint createdTime;
         uint endingTime;
     }
@@ -643,8 +643,9 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
         return true;
     }
 
+    /* Function to be called by admin to update if the rebase is positive */
 
-    function callRebase(bool _rebaseIsPositive, uint256 _rebasePoolId) public {
+    function callRebase(bool rebaseIsNegative, uint256 _rebasePoolId) public {
         //can only call after 23 hours 40 minutes of pool creation.
         require(block.timestamp >= lastcreated + 85200, "pool time"); //23 hours 40 mins in seconds
         require(msg.sender == owner, "Not Owner");
@@ -652,8 +653,8 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
         Rebase storage r = rebase[_rebasePoolId];
         require(r.endingTime >= block.timestamp, "Ended");
         r.NumberOfOccurances = SafeMath.add(r.NumberOfOccurances, 1);
-        if(_rebaseIsPositive == true) {
-            r.numberOfPositiveDates = SafeMath.add(r.numberOfPositiveDates, 1);
+        if(rebaseIsNegative == true) {
+            r.numberOfNegativeDates = SafeMath.add(r.numberOfNegativeDates, 1);
         } 
     }
     
@@ -800,9 +801,9 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
         return(us.pools,us.username,us.freebal,us.balance,us.active);
     }
 
-    function fetchRebasePool(uint _RebasePoolId) public view returns( uint _NumberOfOccurances, uint _numberOfPositiveDates, uint _createdTime, uint _endingTime) {
+    function fetchRebasePool(uint _RebasePoolId) public view returns( uint _NumberOfOccurances, uint _numberOfNegativeDates, uint _createdTime, uint _endingTime) {
         Rebase storage r = rebase[_RebasePoolId];
-        return(r.NumberOfOccurances, r.numberOfPositiveDates, r.createdTime, r.endingTime);
+        return(r.NumberOfOccurances, r.numberOfNegativeDates, r.createdTime, r.endingTime);
     }
     
     /* Fetch the information of a PoolId */

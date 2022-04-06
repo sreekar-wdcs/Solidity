@@ -8,8 +8,6 @@
 
 // SPDX-License-Identifier: UNLICENSED
 
-//pragma solidity <=0.7.5;
-
 
 // File: contracts\open-zeppelin-contracts\token\ERC20\IERC20.sol
 
@@ -547,7 +545,7 @@ contract TokenMintERC20Token is ERC20 {
 
 interface IcryptoPredictionPool {
     function Register(string memory _username) external returns(bool);
-    function callRebase(bool rebaseIsNegative, uint256 _rebasePoolId) external;
+    // function callRebase(bool rebaseIsNegative, uint256 _rebasePoolId) external;
     function PlaceBet(uint256 index,uint256 _prices,uint256 _percent,uint256 _poolId,uint256 _amount) external returns(bool);
     function updatebal(address _user,uint256 _poolId,uint256 _reward,bool _isPositive) external returns(bool);
     function createRebase() external returns(bool);
@@ -567,6 +565,7 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
     uint256 public poolId ;
     uint public rebasePoolId ;
     address public owner;
+    address rebaseCaller;
     
     /* Pool Token Address */
     
@@ -624,13 +623,20 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
     mapping(uint256 => Pool) pool;
     mapping(address => User) user;
     mapping(uint256 => Data) data;
-    mapping(uint256 => Rebase) rebase;
+    mapping(uint256 => Rebase) rebasePool;
     mapping(uint256 => bool) IsRebasePositive;
     
     constructor(address _pool_address) {
         owner = msg.sender;
         pool_address = TokenMintERC20Token(_pool_address);
         lastcreated = block.timestamp;
+    }
+
+    /* To set the rebase caller */
+
+    function setRebaseCaller(address _rebaseCaller) public {
+        require(msg.sender == owner, "Not Owner");
+        rebaseCaller = _rebaseCaller;
     }
     
     /*  Registering the username to the contract */
@@ -645,18 +651,14 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
 
     /* Function to be called by admin to update if the rebase is positive */
 
-    function callRebase(bool rebaseIsNegative, uint256 _rebasePoolId) public {
-        //can only call after 23 hours 40 minutes of pool creation.
-        require(block.timestamp >= lastcreated + 85200, "pool time"); //23 hours 40 mins in seconds
-        require(msg.sender == owner, "Not Owner");
-        require(_rebasePoolId <= rebasePoolId, "Invalid");
-        Rebase storage r = rebase[_rebasePoolId];
-        require(r.endingTime >= block.timestamp, "Ended");
-        r.NumberOfOccurances = SafeMath.add(r.NumberOfOccurances, 1);
-        if(rebaseIsNegative == true) {
-            r.numberOfNegativeDates = SafeMath.add(r.numberOfNegativeDates, 1);
-        } 
+    function callRebase(bool _natureRebase) public {
+        require(msg.sender == rebaseCaller, "Not rebasecaller");
+        rebasePool[rebasePoolId].NumberOfOccurances += 1;
+        if(_natureRebase == false){
+            rebasePool[rebasePoolId].numberOfNegativeDates += 1;
+        }
     }
+  
     
     
     /* For placing a prediction in the pool. */
@@ -743,7 +745,7 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
         require(msg.sender == owner,'Not Owner');
         require(block.timestamp > lastRebaseCreated + 30 days, "cannot create new one before 30 days cycle");
         rebasePoolId = SafeMath.add(rebasePoolId,1);
-        Rebase storage r = rebase[rebasePoolId];
+        Rebase storage r = rebasePool[rebasePoolId];
         r.createdTime = block.timestamp;
         lastRebaseCreated = block.timestamp;
         r.endingTime = SafeMath.add(block.timestamp,30 days);
@@ -802,7 +804,7 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
     }
 
     function fetchRebasePool(uint _RebasePoolId) public view returns( uint _NumberOfOccurances, uint _numberOfNegativeDates, uint _createdTime, uint _endingTime) {
-        Rebase storage r = rebase[_RebasePoolId];
+        Rebase storage r = rebasePool[_RebasePoolId];
         return(r.NumberOfOccurances, r.numberOfNegativeDates, r.createdTime, r.endingTime);
     }
     

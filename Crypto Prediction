@@ -542,30 +542,22 @@ contract TokenMintERC20Token is ERC20 {
     }
 }
 
-
-interface IcryptoPredictionPool {
-    function Register(string memory _username) external returns(bool);
-    // function callRebase(bool rebaseIsNegative, uint256 _rebasePoolId) external;
-    function PlaceBet(uint256 index,uint256 _prices,uint256 _percent,uint256 _poolId,uint256 _amount) external returns(bool);
-    function updatebal(address _user,uint256 _poolId,uint256 _reward,bool _isPositive) external returns(bool);
-    function createRebase() external returns(bool);
-    function createPool(uint256[15] memory _prices) external returns(bool);
-    function updateowner(address new_owner) external returns(bool);
-    function updatetime(uint256 _timestamp) external returns(bool);
-    function fetchUser(address _user) external view returns(uint256[] memory _pools,string memory username,uint256 claimable,uint256 staked_balance, bool active);
-    function fetchRebasePool(uint _RebasePoolId) external view returns( uint _NumberOfOccurances, uint _numberOfNegativeDates, uint _createdTime, uint _endingTime);
-    function fetchPool(uint256 _poolId) external view returns(uint256[15] memory _prices,uint256 _start,uint256 _end,uint256 _staking_ends);
-    function fetchUserBets(address _user, uint256 _poolId) external view returns(uint256[15] memory _pools,uint256[15] memory _prices,uint256[15] memory _amounts,uint256 balance,uint256 totalbet);
-    function fetchUserInPool(uint256 _poolId) external view returns(address[] memory _betters);
+interface IMegaPool {
+    function whitelistWinners() external ;
+    function register() external;
+     function random() external view returns (uint); 
 }
 
 
-contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
+
+contract cryptoPredictionPool is ReentrancyGuard {
     
     uint256 public poolId ;
     uint public rebasePoolId ;
     address public owner;
     address rebaseCaller;
+
+    address MegaPool ;
     
     /* Pool Token Address */
     
@@ -580,6 +572,20 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
     uint256 public lastcreated;
     uint256 lastpoolcreated;
     uint256 public lastRebaseCreated;
+
+    /* Mega Pool Information */
+
+    /* array of winners addresses*/
+
+    address[] internal winners;
+
+    /* assigning id numbers to the winners */
+
+    uint num;
+    
+    mapping(uint => address) public userId;
+    mapping(address => bool) public whitelisted;
+    mapping(address => bool) public registered;
 
 
     struct Rebase {
@@ -599,6 +605,8 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
         uint256 totalbet;
         bool claimed;
     }
+
+    mapping(uint => mapping(uint => uint)) public  poolBetAmount;
     
     struct User{
         uint256[] pools;
@@ -632,6 +640,8 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
         lastcreated = block.timestamp;
     }
 
+   
+
     /* To set the rebase caller */
 
     function setRebaseCaller(address _rebaseCaller) public {
@@ -659,8 +669,38 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
         }
     }
   
+     function callMegaPool(address mega) public {
+        // require(rebasePool[rebasePoolId].numberOfNegativeDates > 15, "has not met the eligibility criteria to call mega pool");
+            MegaPool = mega;
+    }
+
+    function whitelisting(address[] memory  users) public {
+        require(msg.sender == owner, "Not Owner");
+        IMegaPool(MegaPool).whitelistWinners();
+        for(uint i = 0; i < users.length; i ++) {
+        whitelisted[users[i]] = true;
+    }
+    }
     
+
+    function registerforMegaPool() public {
+        require(whitelisted[msg.sender] == true, "Not Whitelisted");
+        require(registered[msg.sender] == false, "Already registered");
+        IMegaPool(MegaPool).register();        
+        winners.push(msg.sender);
+        userId[num] = msg.sender;
+        num ++;
+        registered[msg.sender] = true;
+    }
+
+    function RollDice() public view returns(uint) {
+        require(msg.sender == owner, "Not Owner");
+        IMegaPool(MegaPool).random(); 
+        return uint(keccak256(abi.encodePacked(block.difficulty, block.timestamp, winners)))%winners.length; 
+    }
+
     
+
     /* For placing a prediction in the pool. */
     
     function PlaceBet(uint256 index,uint256 _prices,uint256 _percent,uint256 _poolId,uint256 _amount) public returns(bool){
@@ -668,11 +708,13 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
         require(pool_address.allowance(msg.sender,address(this))>=_amount,'Approval failed');
         Pool storage b = pool[_poolId];
         Data storage d = data[_poolId];
-        require(b.stakingends >= block.timestamp,'Ended');
+        // require(b.stakingends >= block.timestamp,'Ended');
         User storage us = user[msg.sender];
         require(us.active == true,'Register to participate');
         UserBets storage u = bets[msg.sender][_poolId];
         require(u.pools[index] == 0,'Already Betted');
+
+        poolBetAmount[index][_poolId] = _amount;
 
         if(u.betted == false){
             u.balance = pool_address.balanceOf(msg.sender);
@@ -685,9 +727,9 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
        
         us.pools.push(_poolId);
         us.balance = SafeMath.add(us.balance,_amount);
-        u.pools[index] = _percent; 
-        u.prices[index] = _prices; 
-        u.amounts[index] = _amount;
+        u.pools[index] = _percent/100; 
+        u.prices[index] = _prices/100; 
+        u.amounts[index] = _amount/100;
         u.totalbet = u.totalbet + _amount;
         d.user.push(msg.sender);
         pool_address.transferFrom(msg.sender,address(this),_amount);
@@ -696,8 +738,7 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
          
     }
 
-   
-    
+      
     /* Update user balance. Max 4% can be changed */
     
     function updatebal(address _user,uint256 _poolId,uint256 _reward,bool _isPositive) public returns(bool){
@@ -757,15 +798,15 @@ contract cryptoPredictionPool is ReentrancyGuard, IcryptoPredictionPool {
     
     function createPool(uint256[15] memory _prices) public returns(bool){
         require(msg.sender == owner,'Not Owner');
-        require( block.timestamp > lastpoolcreated +  1 days,'Cannot Create');
+        // require( block.timestamp > lastpoolcreated +  1 days,'Cannot Create');
         poolId = SafeMath.add(poolId,1);
         Pool storage b = pool[poolId];
         b.prices = _prices;
         b.startime = block.timestamp;
         lastpoolcreated = block.timestamp;
         lastcreated = block.timestamp;
-        b.endtime = SafeMath.add(block.timestamp,1 days);
-        b.stakingends = SafeMath.add(block.timestamp,12 hours);
+        // b.endtime = SafeMath.add(block.timestamp,1 days);
+        // b.stakingends = SafeMath.add(block.timestamp,12 hours);
        return true;
     }
     

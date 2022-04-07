@@ -1,80 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.5.0;
 
-contract staking {
+contract MegaPool {
 
+
+/* admin will whitelist the top 5 winners */
+
+function whitelistWinners() public  {
+  
+}
+
+ /* This is for winners registration */
+
+function register() public {
+   
+}
+
+/* This function will select a random winner among the registered members */
+
+ function random() public  {
+        
+ // converting hash to integer
+        
+    }
     
-    mapping(address => uint) public balances;
-    mapping(address => uint) public AmountWon;
-    mapping(address => uint) public AmountLost;
-   
-   
-
-    address public owner;
-    uint public poolStarted;
-    uint public poolEnded;
-    uint public lockTime;
-    bool public rebaseIsPositive;
-    bool public userIsActive;
-
-    // address public winner = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
-    // address public loser = 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2;
-
-    constructor(uint startingTime, uint endingTime ) {
-       poolStarted = startingTime;
-       poolEnded = endingTime;      
-       lockTime = block.timestamp + 43200;
-       owner = msg.sender;
-    }
-
-    modifier onlyOwner {
-        require(msg.sender == msg.sender);
-        _; 
-    }
-
-    modifier poolIsActive {
-        require(poolStarted <= block.timestamp);
-        require(poolEnded >= block.timestamp);
-        _;
-    }
-
-    function rebase(bool _rebaseIsPositive) external onlyOwner {
-        rebaseIsPositive = _rebaseIsPositive;
-    }
-
-    function poolBalance() public view returns(uint) {
-        return address(this).balance;
-    }
-
-   
-
-    function resultforWinner(address winner, uint _AmountWon) public onlyOwner {
-       AmountWon[winner] = _AmountWon;
-    }
-
-    function resultForLoser(address loser, uint _AmountLost) public onlyOwner {
-        AmountLost[loser] = _AmountLost;
-    }
-
-
-    function stake() public payable poolIsActive {
-        require(msg.value > 0);
-        balances[msg.sender] += msg.value;
-        userIsActive = true;
-    }
-
-    function updateBal() public onlyOwner {
-        require(userIsActive == true);
-        if(rebaseIsPositive == true) {
-            
-        }
-    }
-
-    function withdraw(uint value) public {
-        require(balances[msg.sender] >= value, "can't withdraw more than staked amount");
-        require(block.timestamp <= lockTime, "funds are locked");
-        payable(msg.sender).transfer(value);
-        balances[msg.sender] -= value;
-    }
-
 }

@@ -1,0 +1,22 @@
+const Web3 = require('web3');
+const web3 = new Web3('https://ropsten.infura.io/v3/333f366f10234837b754099fea8c23ae')
+
+const privateKey = '0xbdbb229305fbe46847f0b33d6be7933fe3fad8a4f5231fadace850a207c031b2'
+const fromAdress = '0xA15aE6Fa3328e5850b9A11bb3fDb160E10EA95Af'
+const toAddress = '0x11de7E13D8522bfBb29187c2D02ad4c8AF98F84d'
+
+async function eth_transaction() {
+    var value = web3.utils.toWei('0.1', 'ether')
+
+    var SignedTransaction = await web3.eth.accounts.signTransaction({
+        to: toAddress,
+        value: value,
+        gas: 2000000
+    }, privateKey);
+
+    web3.eth.sendSignedTransaction(SignedTransaction.rawTransaction) .then((reciept)=>{
+        console.log(reciept);
+    });
+}
+
+eth_transaction()

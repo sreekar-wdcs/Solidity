@@ -1,0 +1,9 @@
+const mod = require('./script')
+
+const lodash = require('lodash')
+
+const num = lodash.random(25,15)
+
+console.log(num)
+
+console.log(mod)
